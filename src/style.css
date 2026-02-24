@@ -1,0 +1,38 @@
+:root {
+  --bg-main: #f7f8fc;
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --border: rgba(148, 163, 184, 0.28);
+  --border-strong: rgba(51, 65, 85, 0.32);
+
+  font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+body {
+  color: var(--text-main);
+  background:
+    radial-gradient(circle at 10% 10%, rgba(129, 140, 248, 0.14), transparent 35%),
+    radial-gradient(circle at 85% 12%, rgba(99, 102, 241, 0.16), transparent 40%),
+    var(--bg-main);
+}
+
+#app {
+  min-height: 100vh;
+}
