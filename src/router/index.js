@@ -1,8 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import GuestStorefront from '../modules/storefront/GuestStorefront.vue'
-import AuthPage from '../modules/auth/AuthPage.vue'
-import AuthCallbackPage from '../modules/auth/AuthCallbackPage.vue'
-import UserHomePage from '../modules/user/UserHomePage.vue'
+
+// Lazy load components for better code splitting and initial load performance
+const GuestStorefront = () => import('../modules/storefront/GuestStorefront.vue')
+const AuthPage = () => import('../modules/auth/AuthPage.vue')
+const AuthCallbackPage = () => import('../modules/auth/AuthCallbackPage.vue')
+const UserHomePage = () => import('../modules/user/UserHomePage.vue')
+const ConnectionTest = () => import('../components/ConnectionTest.vue')
 
 const routes = [
   {
@@ -24,6 +27,11 @@ const routes = [
     path: '/user',
     name: 'user-home',
     component: UserHomePage,
+  },
+  {
+    path: '/test-connection',
+    name: 'test-connection',
+    component: ConnectionTest,
   },
 ]
 

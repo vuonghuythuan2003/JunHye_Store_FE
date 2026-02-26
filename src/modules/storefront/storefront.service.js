@@ -1,4 +1,5 @@
 import { storefrontApi } from './storefront.api'
+import { clearCacheByPattern } from '../../core/http/httpClient'
 
 const unwrap = (payload) => {
   if (!payload) return null
@@ -42,6 +43,8 @@ export const storefrontService = {
   async addToCart(productId, quantity = 1) {
     const response = await storefrontApi.addToCart(productId, quantity)
     const cart = unwrap(response)
+    // Clear cart cache after adding item
+    clearCacheByPattern('/v1/cart')
     return {
       message: response?.message || 'Đã thêm vào giỏ hàng',
       cart,

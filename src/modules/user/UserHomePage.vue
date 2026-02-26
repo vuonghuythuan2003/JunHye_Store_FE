@@ -25,8 +25,12 @@ const goAuth = () => {
 }
 
 const handleLogout = async () => {
-  await logout()
-  goAuth()
+  try {
+    await logout()
+  } finally {
+    // Always redirect, even if logout fails
+    goAuth()
+  }
 }
 </script>
 

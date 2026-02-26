@@ -119,9 +119,11 @@ const closeAdvancedDetail = () => {
 const handleLogout = async () => {
   try {
     await logout()
-    setActionFeedback('Đã đăng xuất thành công')
+    // Redirect immediately after logout
+    window.location.href = '/auth'
   } catch (error) {
-    setActionFeedback('', error.message || 'Đăng xuất thất bại')
+    // Even if error, redirect to auth page
+    window.location.href = '/auth'
   }
 }
 
@@ -716,3 +718,4 @@ h1 {
   }
 }
 </style>
+
