@@ -1,5 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuth } from '../useAuth'
 
 const tab = ref('signin')
@@ -11,6 +12,8 @@ const signInForm = reactive({
   username: '',
   password: '',
 })
+
+const router = useRouter()
 
 const signUpForm = reactive({
   username: '',
@@ -47,6 +50,7 @@ const handleSignIn = async () => {
     const result = await signIn(signInForm)
     successMessage.value = result.message
     signInForm.password = ''
+    router.replace('/user')
   } catch (error) {
     errorMessage.value = error.message || 'Đăng nhập thất bại'
   } finally {

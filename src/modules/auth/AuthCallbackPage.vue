@@ -17,9 +17,9 @@ onMounted(async () => {
     }
 
     completeOAuthCallback(route.query)
-    status.value = 'Đăng nhập thành công. Đang chuyển về trang chủ...'
+    status.value = 'Đăng nhập thành công. Đang chuyển đến trang người dùng...'
     setTimeout(() => {
-      router.replace('/')
+      router.replace('/user')
     }, 1000)
   } catch (error) {
     hasError.value = true

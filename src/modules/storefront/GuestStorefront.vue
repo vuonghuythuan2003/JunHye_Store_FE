@@ -35,7 +35,7 @@ const trustSignals = [
   { title: 'Đổi trả 7 ngày', desc: 'Hỗ trợ đổi size hoặc hoàn trả nhanh gọn.' },
 ]
 
-const { isAuthenticated } = useAuth()
+const { isAuthenticated, logout } = useAuth()
 const showLoginPrompt = ref(false)
 const blockedAction = ref('')
 
@@ -116,6 +116,15 @@ const closeAdvancedDetail = () => {
   selectedDetail.value = null
 }
 
+const handleLogout = async () => {
+  try {
+    await logout()
+    setActionFeedback('Đã đăng xuất thành công')
+  } catch (error) {
+    setActionFeedback('', error.message || 'Đăng xuất thất bại')
+  }
+}
+
 const loadProducts = async () => {
   loadingProducts.value = true
 
@@ -162,7 +171,11 @@ onMounted(() => {
         <a href="#products">Sản phẩm</a>
         <a href="#reviews">Đánh giá</a>
       </nav>
-      <RouterLink to="/auth" class="btn btn-outline">Đăng nhập</RouterLink>
+      <div class="auth-actions">
+        <RouterLink v-if="isAuthenticated()" to="/user" class="btn btn-outline">Tài khoản</RouterLink>
+        <button v-if="isAuthenticated()" class="btn btn-ghost" @click="handleLogout">Đăng xuất</button>
+        <RouterLink v-else to="/auth" class="btn btn-outline">Đăng nhập</RouterLink>
+      </div>
     </header>
 
     <section class="hero reveal">
@@ -309,6 +322,12 @@ nav a {
   color: var(--text-main);
   text-decoration: none;
   font-weight: 500;
+}
+
+.auth-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .hero {

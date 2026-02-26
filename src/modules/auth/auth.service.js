@@ -85,6 +85,12 @@ export const authService = {
       throw new Error(`Provider ${provider} chưa được hỗ trợ`)
     }
 
+    if (key === 'google') {
+      const url = new URL(oauthUrl, window.location.origin)
+      url.searchParams.set('prompt', 'select_account')
+      return url.toString()
+    }
+
     return oauthUrl
   },
 

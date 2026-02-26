@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import GuestStorefront from '../modules/storefront/GuestStorefront.vue'
 import AuthPage from '../modules/auth/AuthPage.vue'
 import AuthCallbackPage from '../modules/auth/AuthCallbackPage.vue'
+import UserHomePage from '../modules/user/UserHomePage.vue'
 
 const routes = [
   {
@@ -18,6 +19,11 @@ const routes = [
     path: '/auth/callback',
     name: 'auth-callback',
     component: AuthCallbackPage,
+  },
+  {
+    path: '/user',
+    name: 'user-home',
+    component: UserHomePage,
   },
 ]
 
