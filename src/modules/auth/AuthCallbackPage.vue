@@ -2,10 +2,11 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from './useAuth'
+import { authService } from './auth.service'
 
 const route = useRoute()
 const router = useRouter()
-const { completeOAuthCallback } = useAuth()
+const { refreshUser, isAdmin } = useAuth()
 
 const status = ref('Đang xử lý đăng nhập mạng xã hội...')
 const hasError = ref(false)
@@ -13,35 +14,32 @@ const isLoading = ref(true)
 
 onMounted(async () => {
   try {
-    // Small delay to show loading state
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    // Check for error from backend
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
     if (route.query.error) {
       const errorMsg = route.query.message || route.query.error
-      // Map common error codes to user-friendly messages
       const errorMessages = {
-        'oauth2_login_failed': 'Đăng nhập OAuth thất bại. Vui lòng thử lại.',
-        'invalid_user_info_response': 'Không thể lấy thông tin từ Google. Vui lòng thử lại.',
-        'social_email_not_found': 'Không tìm thấy email từ tài khoản Google.',
+        oauth2_login_failed: 'Đăng nhập OAuth thất bại. Vui lòng thử lại.',
+        invalid_user_info_response: 'Không thể lấy thông tin từ Google. Vui lòng thử lại.',
+        social_email_not_found: 'Không tìm thấy email từ tài khoản Google.',
       }
       throw new Error(errorMessages[errorMsg] || errorMsg || 'Đăng nhập thất bại')
     }
 
-    // Check if we have required parameters
     if (!route.query.token && !route.query.error) {
       throw new Error('Thiếu thông tin xác thực. Vui lòng thử đăng nhập lại.')
     }
 
     status.value = 'Đang xác thực thông tin...'
-    const result = completeOAuthCallback(route.query)
+    await authService.completeOAuthCallbackAndLoadUser(route.query)
+    refreshUser()
     
     status.value = 'Đăng nhập thành công! Đang chuyển hướng...'
     isLoading.value = false
-    
-    // Redirect after showing success message
+
+    const redirectTo = isAdmin() ? '/admin' : '/user'
     setTimeout(() => {
-      router.replace('/user')
+      router.replace(redirectTo)
     }, 1500)
   } catch (error) {
     isLoading.value = false

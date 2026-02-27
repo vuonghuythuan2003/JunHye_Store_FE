@@ -16,7 +16,7 @@ const unwrapApiData = (payload) => {
   if (typeof payload === 'object' && 'data' in payload) return payload.data
   return payload
 }
-`x`
+
 const getMessage = (payload, fallback) => {
   if (!payload) return fallback
   if (typeof payload === 'object' && payload.message) return payload.message
@@ -124,6 +124,13 @@ export const authService = {
     }
   },
 
+  async completeOAuthCallbackAndLoadUser(query) {
+    const result = this.completeOAuthCallback(query)
+    const userWithRoles = await this.fetchCurrentUser().catch(() => result.user)
+    this.saveSession(null, userWithRoles || result.user)
+    return { ...result, user: userWithRoles || result.user }
+  },
+
   async signIn(form) {
     const payload = {
       username: form.username,
@@ -141,23 +148,22 @@ export const authService = {
     }
 
     this.saveSession(token, user)
-
+    const userWithRoles = await this.fetchCurrentUser().catch(() => user)
     return {
       token,
-      user,
+      user: userWithRoles || user,
       message: getMessage(response, 'Đăng nhập thành công'),
     }
   },
 
   async signUp(form) {
     const payload = {
-      username: form.username,
-      fullName: form.fullName,
-      phoneNumber: form.phoneNumber,
-      address: form.address,
-      email: form.email,
+      username: (form.username || '').trim(),
+      fullName: (form.fullName || '').trim() || null,
+      phoneNumber: (form.phoneNumber || '').trim() || null,
+      address: (form.address || '').trim() || null,
+      email: (form.email || '').trim(),
       password: form.password,
-      roles: ['USER'],
       status: true,
     }
 
@@ -178,6 +184,19 @@ export const authService = {
     }
   },
 
+  async resetPassword(code, newPassword) {
+    const response = await authApi.resetPassword({ code, newPassword })
+
+    return {
+      message: getMessage(response, 'Đặt lại mật khẩu thành công'),
+    }
+  },
+
+  async verifyResetCode(code) {
+    await authApi.verifyResetCode({ code })
+    return {}
+  },
+
   async logout() {
     const token = this.getToken()
 
@@ -195,6 +214,30 @@ export const authService = {
 
     return {
       message: 'Đã đăng xuất',
+    }
+  },
+
+  /**
+   * Fetch current user with roles from BE and save to session.
+   * Call after login or on app load when token exists.
+   * @returns {Promise<object|null>} user with roles or null
+   */
+  async fetchCurrentUser() {
+    const token = this.getToken()
+    if (!token) return null
+    try {
+      const response = await authApi.getMe()
+      const user = unwrapApiData(response)
+      if (user && typeof user === 'object') {
+        this.saveSession(null, user)
+        return user
+      }
+      return null
+    } catch (e) {
+      if (e.message && (e.message.includes('401') || e.message.includes('Token'))) {
+        this.clearSession()
+      }
+      throw e
     }
   },
 }

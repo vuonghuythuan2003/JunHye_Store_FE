@@ -29,7 +29,14 @@ const forgotForm = reactive({
   email: '',
 })
 
-const { currentUser, isAuthenticated, signIn, signUp, forgotPassword, startSocialLogin, logout } = useAuth()
+const { currentUser, isAuthenticated, signIn, signUp, forgotPassword, verifyResetCode, resetPassword, startSocialLogin, logout, isAdmin } = useAuth()
+
+// Forgot password flow: 1 = email, 2 = enter code, 3 = new password
+const forgotStep = ref(1)
+const verifiedCode = ref('')
+
+const forgotCodeForm = reactive({ code: '' })
+const resetPasswordForm = reactive({ newPassword: '', confirmPassword: '' })
 
 const title = computed(() => {
   if (tab.value === 'signin') return 'Đăng nhập nhanh'
@@ -42,6 +49,14 @@ const resetFeedback = () => {
   errorMessage.value = ''
 }
 
+const resetForgotFlow = () => {
+  forgotStep.value = 1
+  verifiedCode.value = ''
+  forgotCodeForm.code = ''
+  resetPasswordForm.newPassword = ''
+  resetPasswordForm.confirmPassword = ''
+}
+
 const handleSignIn = async () => {
   resetFeedback()
   submitting.value = true
@@ -50,7 +65,7 @@ const handleSignIn = async () => {
     const result = await signIn(signInForm)
     successMessage.value = result.message
     signInForm.password = ''
-    router.replace('/user')
+    router.replace(isAdmin() ? '/admin' : '/user')
   } catch (error) {
     errorMessage.value = error.message || 'Đăng nhập thất bại'
   } finally {
@@ -88,8 +103,54 @@ const handleForgot = async () => {
   try {
     const result = await forgotPassword(forgotForm)
     successMessage.value = result.message
+    forgotStep.value = 2
   } catch (error) {
     errorMessage.value = error.message || 'Không gửi được yêu cầu quên mật khẩu'
+  } finally {
+    submitting.value = false
+  }
+}
+
+const handleVerifyCode = async () => {
+  resetFeedback()
+  const code = (forgotCodeForm.code || '').trim().replace(/\D/g, '').slice(0, 6)
+  if (code.length !== 6) {
+    errorMessage.value = 'Vui lòng nhập đủ 6 chữ số'
+    return
+  }
+  submitting.value = true
+
+  try {
+    await verifyResetCode(code)
+    verifiedCode.value = code
+    forgotStep.value = 3
+    successMessage.value = ''
+  } catch (error) {
+    errorMessage.value = error.message || 'Mã không đúng hoặc đã hết hạn'
+  } finally {
+    submitting.value = false
+  }
+}
+
+const handleResetPasswordSubmit = async () => {
+  resetFeedback()
+  if (resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword) {
+    errorMessage.value = 'Mật khẩu xác nhận không khớp'
+    return
+  }
+  if (!resetPasswordForm.newPassword || resetPasswordForm.newPassword.length < 6) {
+    errorMessage.value = 'Mật khẩu mới tối thiểu 6 ký tự'
+    return
+  }
+  submitting.value = true
+
+  try {
+    const result = await resetPassword(verifiedCode.value, resetPasswordForm.newPassword)
+    successMessage.value = result.message
+    resetForgotFlow()
+    tab.value = 'signin'
+  } catch (error) {
+    errorMessage.value = error.message || 'Đặt lại mật khẩu thất bại'
   } finally {
     submitting.value = false
   }
@@ -110,6 +171,13 @@ const handleLogout = async () => {
 }
 
 const socialLoading = ref('')
+
+// Show password toggles (login + signup + forgot step 3)
+const showSignInPassword = ref(false)
+const showSignUpPassword = ref(false)
+const showSignUpConfirm = ref(false)
+const showResetNew = ref(false)
+const showResetConfirm = ref(false)
 
 const handleSocialLogin = (provider) => {
   resetFeedback()
@@ -138,12 +206,12 @@ const handleSocialLogin = (provider) => {
     </div>
 
     <div class="tabs" role="tablist" aria-label="auth tabs">
-      <button class="tab" :class="{ active: tab === 'signin' }" @click="tab = 'signin'; resetFeedback()">Đăng nhập</button>
-      <button class="tab" :class="{ active: tab === 'signup' }" @click="tab = 'signup'; resetFeedback()">Đăng ký</button>
+      <button class="tab" :class="{ active: tab === 'signin' }" @click="tab = 'signin'; resetFeedback(); resetForgotFlow()">Đăng nhập</button>
+      <button class="tab" :class="{ active: tab === 'signup' }" @click="tab = 'signup'; resetFeedback(); resetForgotFlow()">Đăng ký</button>
       <button class="tab" :class="{ active: tab === 'forgot' }" @click="tab = 'forgot'; resetFeedback()">Quên mật khẩu</button>
     </div>
 
-    <div v-if="!isAuthenticated()" class="social-wrap">
+    <div v-if="!isAuthenticated() && (tab === 'signin' || tab === 'signup')" class="social-wrap">
       <p class="social-title">Hoặc tiếp tục với</p>
       <div class="social-grid">
         <button 
@@ -210,7 +278,24 @@ const handleSocialLogin = (provider) => {
       </label>
       <label>
         Mật khẩu
-        <input v-model="signInForm.password" required type="password" placeholder="••••••••" />
+        <div class="password-wrap">
+          <input
+            v-model="signInForm.password"
+            required
+            :type="showSignInPassword ? 'text' : 'password'"
+            placeholder="••••••••"
+          />
+          <button type="button" class="password-toggle" :aria-label="showSignInPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" @click="showSignInPassword = !showSignInPassword">
+            <svg v-if="showSignInPassword" class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+            <svg v-else class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
       </label>
       <button class="btn btn-primary" :disabled="submitting">
         {{ submitting ? 'Đang đăng nhập...' : 'Đăng nhập ngay' }}
@@ -248,11 +333,45 @@ const handleSocialLogin = (provider) => {
       <div class="two-cols">
         <label>
           Mật khẩu
-          <input v-model="signUpForm.password" required type="password" placeholder="Tối thiểu 8 ký tự" />
+          <div class="password-wrap">
+            <input
+              v-model="signUpForm.password"
+              required
+              :type="showSignUpPassword ? 'text' : 'password'"
+              placeholder="Tối thiểu 8 ký tự, có chữ hoa, chữ thường và số"
+            />
+            <button type="button" class="password-toggle" :aria-label="showSignUpPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" @click="showSignUpPassword = !showSignUpPassword">
+              <svg v-if="showSignUpPassword" class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+              <svg v-else class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
         </label>
         <label>
           Xác nhận mật khẩu
-          <input v-model="signUpForm.confirmPassword" required type="password" placeholder="Nhập lại mật khẩu" />
+          <div class="password-wrap">
+            <input
+              v-model="signUpForm.confirmPassword"
+              required
+              :type="showSignUpConfirm ? 'text' : 'password'"
+              placeholder="Nhập lại mật khẩu"
+            />
+            <button type="button" class="password-toggle" :aria-label="showSignUpConfirm ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" @click="showSignUpConfirm = !showSignUpConfirm">
+              <svg v-if="showSignUpConfirm" class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+              <svg v-else class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
         </label>
       </div>
 
@@ -261,13 +380,79 @@ const handleSocialLogin = (provider) => {
       </button>
     </form>
 
-    <form v-else class="form-grid" @submit.prevent="handleForgot">
+    <form v-else-if="tab === 'forgot' && forgotStep === 1" class="form-grid" @submit.prevent="handleForgot">
       <label>
         Email đăng ký
         <input v-model.trim="forgotForm.email" required type="email" placeholder="mail@example.com" />
       </label>
       <button class="btn btn-primary" :disabled="submitting">
         {{ submitting ? 'Đang gửi...' : 'Gửi yêu cầu quên mật khẩu' }}
+      </button>
+    </form>
+
+    <form v-else-if="tab === 'forgot' && forgotStep === 2" class="form-grid" @submit.prevent="handleVerifyCode">
+      <p class="forgot-step-hint">Nếu email tồn tại trong hệ thống, bạn sẽ nhận mã 6 số qua email. Vui lòng kiểm tra hộp thư.</p>
+      <label>
+        Mã 6 số
+        <input
+          v-model="forgotCodeForm.code"
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          placeholder="Nhập mã từ email"
+          @input="forgotCodeForm.code = forgotCodeForm.code.replace(/\D/g, '')"
+        />
+      </label>
+      <button class="btn btn-primary" :disabled="submitting">
+        {{ submitting ? 'Đang xác thực...' : 'Tiếp tục' }}
+      </button>
+    </form>
+
+    <form v-else-if="tab === 'forgot' && forgotStep === 3" class="form-grid" @submit.prevent="handleResetPasswordSubmit">
+      <label>
+        Mật khẩu mới
+        <div class="password-wrap">
+          <input
+            v-model="resetPasswordForm.newPassword"
+            required
+            :type="showResetNew ? 'text' : 'password'"
+            placeholder="Tối thiểu 6 ký tự"
+          />
+          <button type="button" class="password-toggle" :aria-label="showResetNew ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" @click="showResetNew = !showResetNew">
+            <svg v-if="showResetNew" class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+            <svg v-else class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </label>
+      <label>
+        Xác nhận mật khẩu
+        <div class="password-wrap">
+          <input
+            v-model="resetPasswordForm.confirmPassword"
+            required
+            :type="showResetConfirm ? 'text' : 'password'"
+            placeholder="Nhập lại mật khẩu"
+          />
+          <button type="button" class="password-toggle" :aria-label="showResetConfirm ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'" @click="showResetConfirm = !showResetConfirm">
+            <svg v-if="showResetConfirm" class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+            <svg v-else class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </label>
+      <button class="btn btn-primary" :disabled="submitting">
+        {{ submitting ? 'Đang xử lý...' : 'Đặt lại mật khẩu' }}
       </button>
     </form>
 
@@ -450,6 +635,44 @@ input:focus {
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16);
 }
 
+.password-wrap {
+  position: relative;
+  display: grid;
+}
+
+.password-wrap input {
+  padding-right: 44px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle:hover {
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.eye-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
 .session-card {
   display: grid;
   gap: 8px;
@@ -507,6 +730,25 @@ input:focus {
 .feedback.error {
   color: #991b1b;
   background: #fee2e2;
+}
+
+.feedback-hint {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+.forgot-step-hint {
+  margin: 0 0 4px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 0.92rem;
+}
+
+.feedback-hint a {
+  color: #6366f1;
+  font-weight: 600;
 }
 
 @media (max-width: 760px) {

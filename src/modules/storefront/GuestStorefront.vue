@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useAuth } from '../auth/useAuth'
 import { storefrontService } from './storefront.service'
+import { useRoute, useRouter } from 'vue-router'
 
 const categories = [
   { name: 'Áo khoác', desc: 'Phong cách tối giản, dễ phối đồ', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80' },
@@ -35,9 +36,12 @@ const trustSignals = [
   { title: 'Đổi trả 7 ngày', desc: 'Hỗ trợ đổi size hoặc hoàn trả nhanh gọn.' },
 ]
 
-const { isAuthenticated, logout } = useAuth()
+const { isAuthenticated, logout, isAdmin } = useAuth()
 const showLoginPrompt = ref(false)
 const blockedAction = ref('')
+const showForbiddenAdminBanner = ref(false)
+const route = useRoute()
+const router = useRouter()
 
 const loginRequiredActions = {
   addToCart: 'thêm sản phẩm vào giỏ',
@@ -147,6 +151,10 @@ const loadProducts = async () => {
 }
 
 onMounted(() => {
+  if (route.query.error === 'forbidden_admin') {
+    showForbiddenAdminBanner.value = true
+    router.replace({ path: '/', query: {} })
+  }
   loadProducts()
 
   const observer = new IntersectionObserver(
@@ -166,6 +174,10 @@ onMounted(() => {
 
 <template>
   <div class="storefront">
+    <div v-if="showForbiddenAdminBanner" class="forbidden-banner">
+      Bạn không có quyền truy cập trang quản trị. Chỉ tài khoản ADMIN mới được vào.
+      <button type="button" class="forbidden-banner-close" @click="showForbiddenAdminBanner = false">×</button>
+    </div>
     <header class="topbar reveal">
       <div class="brand">JunHye Fashion</div>
       <nav>
@@ -174,6 +186,7 @@ onMounted(() => {
         <a href="#reviews">Đánh giá</a>
       </nav>
       <div class="auth-actions">
+        <RouterLink v-if="isAuthenticated() && isAdmin()" to="/admin" class="btn btn-outline">Quản trị</RouterLink>
         <RouterLink v-if="isAuthenticated()" to="/user" class="btn btn-outline">Tài khoản</RouterLink>
         <button v-if="isAuthenticated()" class="btn btn-ghost" @click="handleLogout">Đăng xuất</button>
         <RouterLink v-else to="/auth" class="btn btn-outline">Đăng nhập</RouterLink>
@@ -293,6 +306,28 @@ onMounted(() => {
 .storefront {
   width: min(1200px, 92vw);
   margin: 28px auto 40px;
+}
+
+.forbidden-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.forbidden-banner-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: #b91c1c;
+  padding: 0 4px;
+  line-height: 1;
 }
 
 .topbar {

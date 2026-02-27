@@ -87,7 +87,8 @@ export const httpClient = async (path, options = {}) => {
         localStorage.removeItem('junhye.auth.token')
         localStorage.removeItem('junhye.auth.user')
       }
-      throw new Error(data?.message || `Request failed: ${response.status}`)
+      const msg = data?.message || (response.status === 403 ? 'Bạn không có quyền thực hiện thao tác này (403)' : `Request failed: ${response.status}`)
+      throw new Error(msg)
     }
 
     // Cache successful GET requests

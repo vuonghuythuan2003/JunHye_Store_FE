@@ -19,6 +19,18 @@ export const authApi = {
       body: JSON.stringify(payload),
     })
   },
+  resetPassword(payload) {
+    return httpClient('/v1/account/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+  verifyResetCode(payload) {
+    return httpClient('/v1/account/verify-reset-code', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
   logout(token) {
     return httpClient('/v1/auth/logout', {
       method: 'POST',
@@ -28,5 +40,10 @@ export const authApi = {
           }
         : {},
     })
+  },
+
+  /** Get current user with roles (requires auth) */
+  getMe() {
+    return httpClient('/v1/auth/me')
   },
 }

@@ -7,6 +7,18 @@ const accessToken = ref(authService.getToken())
 export const useAuth = () => {
   const isAuthenticated = () => Boolean(accessToken.value)
 
+  const isAdmin = () => {
+    const user = currentUser.value || authService.getUser()
+    if (!user || !user.roles) return false
+    const roles = user.roles
+    if (!Array.isArray(roles)) return false
+    return roles.some((r) => r === 'ADMIN' || (typeof r === 'object' && r && (r.roleName === 'ADMIN' || r.name === 'ADMIN')))
+  }
+
+  const refreshUser = () => {
+    currentUser.value = authService.getUser()
+  }
+
   const signIn = async (form) => {
     const result = await authService.signIn(form)
     currentUser.value = result.user
@@ -20,6 +32,14 @@ export const useAuth = () => {
 
   const forgotPassword = async (form) => {
     return authService.forgotPassword(form)
+  }
+
+  const verifyResetCode = async (code) => {
+    return authService.verifyResetCode(code)
+  }
+
+  const resetPassword = async (code, newPassword) => {
+    return authService.resetPassword(code, newPassword)
   }
 
   const startSocialLogin = (provider) => {
@@ -48,9 +68,13 @@ export const useAuth = () => {
     currentUser,
     accessToken,
     isAuthenticated,
+    isAdmin,
+    refreshUser,
     signIn,
     signUp,
     forgotPassword,
+    verifyResetCode,
+    resetPassword,
     startSocialLogin,
     completeOAuthCallback,
     logout,
