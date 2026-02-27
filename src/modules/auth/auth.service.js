@@ -1,5 +1,6 @@
 import { authApi } from './auth.api'
 import { env } from '../../core/config/env'
+import { clearHttpCache } from '../../core/http/httpClient'
 
 const AUTH_TOKEN_KEY = 'junhye.auth.token'
 const AUTH_USER_KEY = 'junhye.auth.user'
@@ -85,12 +86,8 @@ export const authService = {
       throw new Error(`Provider ${provider} chưa được hỗ trợ`)
     }
 
-    if (key === 'google') {
-      const url = new URL(oauthUrl, window.location.origin)
-      url.searchParams.set('prompt', 'select_account')
-      return url.toString()
-    }
-
+    // oauthUrl is already a full URL, just return it
+    // Spring Security will handle the OAuth flow
     return oauthUrl
   },
 
@@ -184,12 +181,16 @@ export const authService = {
   async logout() {
     const token = this.getToken()
 
-    try {
-      if (token) {
-        await authApi.logout(token)
-      }
-    } finally {
-      this.clearSession()
+    // Clear session immediately (don't wait for API response)
+    this.clearSession()
+    clearHttpCache() // Clear HTTP cache on logout
+
+    // Call API in background (fire and forget)
+    if (token) {
+      authApi.logout(token).catch((error) => {
+        // Silently fail - session already cleared
+        console.warn('Logout API call failed:', error)
+      })
     }
 
     return {

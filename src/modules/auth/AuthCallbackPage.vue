@@ -9,21 +9,45 @@ const { completeOAuthCallback } = useAuth()
 
 const status = ref('Đang xử lý đăng nhập mạng xã hội...')
 const hasError = ref(false)
+const isLoading = ref(true)
 
 onMounted(async () => {
   try {
+    // Small delay to show loading state
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    // Check for error from backend
     if (route.query.error) {
-      throw new Error(route.query.message || route.query.error)
+      const errorMsg = route.query.message || route.query.error
+      // Map common error codes to user-friendly messages
+      const errorMessages = {
+        'oauth2_login_failed': 'Đăng nhập OAuth thất bại. Vui lòng thử lại.',
+        'invalid_user_info_response': 'Không thể lấy thông tin từ Google. Vui lòng thử lại.',
+        'social_email_not_found': 'Không tìm thấy email từ tài khoản Google.',
+      }
+      throw new Error(errorMessages[errorMsg] || errorMsg || 'Đăng nhập thất bại')
     }
 
-    completeOAuthCallback(route.query)
-    status.value = 'Đăng nhập thành công. Đang chuyển đến trang người dùng...'
+    // Check if we have required parameters
+    if (!route.query.token && !route.query.error) {
+      throw new Error('Thiếu thông tin xác thực. Vui lòng thử đăng nhập lại.')
+    }
+
+    status.value = 'Đang xác thực thông tin...'
+    const result = completeOAuthCallback(route.query)
+    
+    status.value = 'Đăng nhập thành công! Đang chuyển hướng...'
+    isLoading.value = false
+    
+    // Redirect after showing success message
     setTimeout(() => {
       router.replace('/user')
-    }, 1000)
+    }, 1500)
   } catch (error) {
+    isLoading.value = false
     hasError.value = true
     status.value = error.message || 'Không thể xử lý dữ liệu callback từ backend'
+    console.error('OAuth callback error:', error)
   }
 })
 </script>
@@ -31,10 +55,13 @@ onMounted(async () => {
 <template>
   <main class="callback-wrap">
     <section class="callback-card">
-      <div class="dot" :class="{ error: hasError }" />
-      <h1>{{ hasError ? 'Đăng nhập thất bại' : 'Social Login' }}</h1>
+      <div v-if="isLoading" class="spinner-large"></div>
+      <div v-else class="dot" :class="{ error: hasError, success: !hasError }" />
+      <h1>{{ hasError ? 'Đăng nhập thất bại' : isLoading ? 'Đang xử lý...' : 'Đăng nhập thành công' }}</h1>
       <p>{{ status }}</p>
-      <RouterLink to="/auth" class="action-link">Quay lại trang đăng nhập</RouterLink>
+      <RouterLink v-if="!isLoading" to="/auth" class="action-link">
+        {{ hasError ? 'Quay lại trang đăng nhập' : 'Tiếp tục' }}
+      </RouterLink>
     </section>
   </main>
 </template>
@@ -68,6 +95,21 @@ onMounted(async () => {
 .dot.error {
   background: #dc2626;
   animation: none;
+}
+
+.dot.success {
+  background: #16a34a;
+  animation: pulse 1.2s infinite;
+}
+
+.spinner-large {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  animation: spin 0.8s linear infinite;
 }
 
 h1 {

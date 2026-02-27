@@ -109,12 +109,19 @@ const handleLogout = async () => {
   }
 }
 
+const socialLoading = ref('')
+
 const handleSocialLogin = (provider) => {
   resetFeedback()
+  socialLoading.value = provider
 
   try {
-    startSocialLogin(provider)
+    // Show loading message before redirect
+    setTimeout(() => {
+      startSocialLogin(provider)
+    }, 300) // Small delay to show loading state
   } catch (error) {
+    socialLoading.value = ''
     errorMessage.value = error.message || 'Không thể khởi tạo đăng nhập mạng xã hội'
   }
 }
@@ -139,8 +146,14 @@ const handleSocialLogin = (provider) => {
     <div v-if="!isAuthenticated()" class="social-wrap">
       <p class="social-title">Hoặc tiếp tục với</p>
       <div class="social-grid">
-        <button class="social-btn google" type="button" @click="handleSocialLogin('google')">
-          <span class="icon" aria-hidden="true">
+        <button 
+          class="social-btn google" 
+          type="button" 
+          :disabled="socialLoading !== ''"
+          @click="handleSocialLogin('google')"
+        >
+          <span v-if="socialLoading === 'google'" class="spinner" aria-hidden="true"></span>
+          <span v-else class="icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M21.6 12.23c0-.77-.07-1.51-.2-2.23H12v4.22h5.4a4.62 4.62 0 0 1-2 3.03v2.52h3.24c1.9-1.75 2.96-4.34 2.96-7.54Z" fill="#4285F4"/>
               <path d="M12 22c2.7 0 4.96-.9 6.62-2.43l-3.24-2.52c-.9.6-2.05.95-3.38.95-2.6 0-4.8-1.76-5.59-4.12H3.06v2.6A9.99 9.99 0 0 0 12 22Z" fill="#34A853"/>
@@ -148,23 +161,35 @@ const handleSocialLogin = (provider) => {
               <path d="M12 5.98c1.47 0 2.79.5 3.83 1.47l2.87-2.87A9.96 9.96 0 0 0 12 2 9.99 9.99 0 0 0 3.06 7.52l3.35 2.6c.79-2.36 2.99-4.14 5.59-4.14Z" fill="#EA4335"/>
             </svg>
           </span>
-          <span>Google</span>
+          <span>{{ socialLoading === 'google' ? 'Đang chuyển hướng...' : 'Google' }}</span>
         </button>
-        <button class="social-btn facebook" type="button" @click="handleSocialLogin('facebook')">
-          <span class="icon" aria-hidden="true">
+        <button 
+          class="social-btn facebook" 
+          type="button" 
+          :disabled="socialLoading !== ''"
+          @click="handleSocialLogin('facebook')"
+        >
+          <span v-if="socialLoading === 'facebook'" class="spinner" aria-hidden="true"></span>
+          <span v-else class="icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
               <path d="M13.5 22v-8h2.7l.4-3h-3.1V9.1c0-.9.3-1.6 1.6-1.6h1.7V4.8c-.3 0-1.4-.1-2.6-.1-2.6 0-4.3 1.5-4.3 4.4V11H8v3h2v8h3.5Z"/>
             </svg>
           </span>
-          <span>Facebook</span>
+          <span>{{ socialLoading === 'facebook' ? 'Đang chuyển hướng...' : 'Facebook' }}</span>
         </button>
-        <button class="social-btn apple" type="button" @click="handleSocialLogin('apple')">
-          <span class="icon" aria-hidden="true">
+        <button 
+          class="social-btn apple" 
+          type="button" 
+          :disabled="socialLoading !== ''"
+          @click="handleSocialLogin('apple')"
+        >
+          <span v-if="socialLoading === 'apple'" class="spinner" aria-hidden="true"></span>
+          <span v-else class="icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
               <path d="M16.8 12.8c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.6-1.6-3.2-1.6-1.3-.1-2.6.8-3.3.8-.7 0-1.8-.8-2.9-.8-1.5 0-2.9.9-3.6 2.3-1.6 2.8-.4 7 1.1 9.1.7 1 1.5 2.1 2.6 2.1 1 0 1.4-.6 2.6-.6s1.6.6 2.7.6c1.1 0 1.8-1 2.5-2 .8-1.1 1.1-2.2 1.1-2.3 0 0-2.1-.8-2.1-4.4ZM14.6 6.4c.6-.7 1-1.7.8-2.7-.9 0-1.9.6-2.5 1.3-.6.7-1.1 1.7-.9 2.7 1 .1 2-.5 2.6-1.3Z"/>
             </svg>
           </span>
-          <span>Apple</span>
+          <span>{{ socialLoading === 'apple' ? 'Đang chuyển hướng...' : 'Apple' }}</span>
         </button>
       </div>
     </div>
@@ -342,9 +367,29 @@ h2 {
   height: 100%;
 }
 
-.social-btn:hover {
+.social-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+}
+
+.social-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .social-btn.google {

@@ -35,9 +35,12 @@ export const useAuth = () => {
   }
 
   const logout = async () => {
-    const result = await authService.logout()
+    // Update state immediately
     currentUser.value = null
     accessToken.value = ''
+    
+    // Then call logout service (which clears session)
+    const result = await authService.logout()
     return result
   }
 
